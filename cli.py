@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # cli.py
 
+# internal imports
+import os
+
 # external imports
 import click
 from datetime import datetime
@@ -8,6 +11,9 @@ import yaml
 
 # local imports
 from client import OperlogClient
+
+# change working dir to current
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 # load config from file
 with open('config.yml', 'r') as file:
