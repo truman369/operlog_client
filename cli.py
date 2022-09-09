@@ -10,7 +10,7 @@ from datetime import datetime
 import yaml
 
 # local imports
-from client import OperlogClient
+from operlog_client.client import OperlogClient
 
 # change working dir to current
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
