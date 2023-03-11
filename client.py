@@ -4,9 +4,11 @@
 # internal imports
 import logging
 import re
+from datetime import datetime, timedelta
 
 # external imports
 import requests
+import mechanicalsoup
 
 
 class OperlogClient:
@@ -120,3 +122,50 @@ class OperlogClient:
                     colored[i] = re.sub(rgx, rgx_color, item[i])
                     res[item_id] = colored
         return res
+
+
+class OperlogParser:
+    """Parser for non-api web interface"""
+
+    def __init__(self, url: str):
+        self.url = url
+        self.browser = mechanicalsoup.StatefulBrowser(
+            user_agent='operlog/0.1')
+
+    def get_items_by_date(self, date_range: tuple):
+        """Get items between two dates"""
+
+        # convert date format
+        str_range = []
+        for d in date_range:
+            if isinstance(d, int) or isinstance(d, float):
+                d = datetime.fromtimestamp(d)
+            if isinstance(d, datetime):
+                d = d.strftime('%Y-%m-%d')
+            str_range.append(d)
+        keys = ['timestamp', 'event', 'specialist',
+                'end_time', 'comment', 'operator']
+        res = []
+        page = self.browser.post(self.url+'/search', data={
+            'date1': str_range[0], 'date2': str_range[1], 'event': ''})
+        header = page.soup.find(class_='table_oper_log').find('tr')
+        rows = header.find_all_next('tr')
+        for row in rows:
+            vals = list(map(lambda x: x.text.strip(), row.find_all('td')))
+            data = dict(zip(keys, vals))
+            # convert date from text to unixtime
+            data['timestamp'] = int(datetime.timestamp(datetime.strptime(
+                data['timestamp'], '%Y-%m-%d %H:%M:%S')))
+            # clear empty values
+            if data['specialist'] == '-----':
+                data['specialist'] = None
+            if data['end_time'] == 'None':
+                data['end_time'] = None
+            res.append(data)
+        return {'data': res}
+
+    def get_items_last_days(self, days: int = 0):
+        """Get last items for several days"""
+        date_to = datetime.now()
+        date_from = date_to-timedelta(days=days)
+        return self.get_items_by_date((date_from, date_to))
