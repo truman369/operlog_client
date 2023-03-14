@@ -139,10 +139,21 @@ class OperlogParser:
         str_range = []
         for d in date_range:
             if isinstance(d, int) or isinstance(d, float):
-                d = datetime.fromtimestamp(d)
+                # handle incorrect timestamp
+                if d <= 0:
+                    d = datetime.now()
+                else:
+                    d = datetime.fromtimestamp(d)
+            # handle incorrect string format
+            elif (isinstance(d, str)
+                  and not re.fullmatch(r'\d{4}-\d{2}-\d{2}', d)):
+                d = datetime.now()
             if isinstance(d, datetime):
                 d = d.strftime('%Y-%m-%d')
             str_range.append(d)
+        # handle incorrect date order
+        if str_range[0] > str_range[1]:
+            str_range.sort()
         keys = ['timestamp', 'event', 'specialist',
                 'end_time', 'comment', 'operator']
         res = []
@@ -162,7 +173,7 @@ class OperlogParser:
             if data['end_time'] == 'None':
                 data['end_time'] = None
             res.append(data)
-        return {'data': res}
+        return {'items': res}
 
     def get_items_last_days(self, days: int = 0):
         """Get last items for several days"""
