@@ -25,7 +25,7 @@ class OperlogClient:
             with open(self.token_file, 'r') as f:
                 token = f.read()
         except FileNotFoundError:
-            token = update_token()
+            token = self.update_token()
         if token is not None:
             self.token = token
         else:
