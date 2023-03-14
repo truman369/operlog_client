@@ -132,33 +132,21 @@ class OperlogParser:
         self.browser = mechanicalsoup.StatefulBrowser(
             user_agent='operlog/0.1')
 
-    def get_items_by_date(self, date_range: tuple):
-        """Get items between two dates"""
+    def get_items_in_range(self, start: int = 0, end: int = 0):
+        """Get items between two timestamps"""
 
-        # convert date format
-        str_range = []
-        for d in date_range:
-            if isinstance(d, int) or isinstance(d, float):
-                # handle incorrect timestamp
-                if d <= 0:
-                    d = datetime.now()
-                else:
-                    d = datetime.fromtimestamp(d)
-            # handle incorrect string format
-            elif (isinstance(d, str)
-                  and not re.fullmatch(r'\d{4}-\d{2}-\d{2}', d)):
-                d = datetime.now()
-            if isinstance(d, datetime):
-                d = d.strftime('%Y-%m-%d')
-            str_range.append(d)
-        # handle incorrect date order
-        if str_range[0] > str_range[1]:
-            str_range.sort()
+        # set default end time as now
+        if end == 0:
+            end = int(datetime.timestamp(datetime.now()))
+
         keys = ['timestamp', 'event', 'specialist',
                 'end_time', 'comment', 'operator']
         res = []
+        # convert timestamps to text date
+        date1 = datetime.fromtimestamp(start).strftime('%Y-%m-%d')
+        date2 = datetime.fromtimestamp(end).strftime('%Y-%m-%d')
         page = self.browser.post(self.url+'/search', data={
-            'date1': str_range[0], 'date2': str_range[1], 'event': ''})
+            'date1': date1, 'date2': date2, 'event': ''})
         header = page.soup.find(class_='table_oper_log').find('tr')
         rows = header.find_all_next('tr')
         for row in rows:
@@ -167,16 +155,13 @@ class OperlogParser:
             # convert date from text to unixtime
             data['timestamp'] = int(datetime.timestamp(datetime.strptime(
                 data['timestamp'], '%Y-%m-%d %H:%M:%S')))
+            # check time range
+            if data['timestamp'] < start or data['timestamp'] > end:
+                continue
             # clear empty values
             if data['specialist'] == '-----':
                 data['specialist'] = None
             if data['end_time'] == 'None':
                 data['end_time'] = None
             res.append(data)
-        return {'items': res}
-
-    def get_items_last_days(self, days: int = 0):
-        """Get last items for several days"""
-        date_to = datetime.now()
-        date_from = date_to-timedelta(days=days)
-        return self.get_items_by_date((date_from, date_to))
+        return res
